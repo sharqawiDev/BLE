@@ -180,7 +180,6 @@ class Home extends Component {
             }
 
           </List>
-
         </Container>
       </>
     )

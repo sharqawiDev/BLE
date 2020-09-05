@@ -33,6 +33,16 @@ export default class DevicePage extends Component {
         })
     }
 
+    componentDidUpdate() {
+        AsyncStorage.getItem(this.state.id).then(result => {
+            if (result)
+                this.setState({ data: result })
+            else
+                this.setState({ data: null })
+        })
+    }
+
+
     stopScanning = () => {
         manager.stopDeviceScan()
         ToastAndroid.showWithGravityAndOffset(
