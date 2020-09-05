@@ -30,7 +30,8 @@ class Home extends Component {
 
   refreshConnectedDevices = () => {
     manager.connectedDevices([SERVICE_UUID]).then(list => {
-      this.setState({ connectedDevices: list })
+      const newList = list.map(item => [item.id, item.name])
+      this.setState({ connectedDevices: newList })
     })
   }
 
@@ -85,47 +86,50 @@ class Home extends Component {
       }
     }, 25000)
     manager.startDeviceScan(null, null, (error, device) => {
-      if (error) {
-        console.error(error)
-        // Handle error (scanning will be stopped automatically)
-        return
-      }
 
-      if (/^ESP32/.test(device.name)) {
-        const alreadyAdded = this.state.devices.filter(d => d.name === device.name)[0]
-        if (!alreadyAdded)
-          this.setState(prev => ({ devices: [device, ...prev.devices] }))
+      try {
+
+        if (/^ESP32/.test(device.name)) {
+          const alreadyAdded = this.state.devices.filter(d => d[0] === device.id)[0]
+          if (!alreadyAdded)
+            this.setState(prev => ({ devices: [[device.id, device.name], ...prev.devices] }))
+        }
+
+      } catch (e) {
+        console.error(error)
+        return
       }
     });
   }
 
-  connectToDevice = (device) => {
+  connectToDevice = (id) => {
     if (this.state.scanning === "STOP")
       this.stopScanning()
-    const newDevices = this.state.devices.filter(d => d.name !== device.name)
-    manager.connectToDevice(device.id).then(device => {
+    const newDevices = this.state.devices.filter(d => d[0] !== id)
+    manager.connectToDevice(id).then(device => {
+      this.setState(prv => ({ devices: newDevices }))
       device.discoverAllServicesAndCharacteristics().then(readyDevice => {
         this.refreshConnectedDevices()
         readyDevice.monitorCharacteristicForService(SERVICE_UUID, CHARACTERISTIC_UUID,
           (error, characteristic) => {
             try {
               const incoming = Base64.decode(characteristic.value).trim() + '\n';
-              AsyncStorage.getItem(device.id).then(result => {
+              AsyncStorage.getItem(id).then(result => {
                 if (result) {
                   result = result.concat(incoming)
-                  AsyncStorage.setItem(device.id, result)
+                  AsyncStorage.setItem(id, result)
                 } else {
-                  AsyncStorage.setItem(device.id, incoming)
+                  AsyncStorage.setItem(id, incoming)
                 }
               })
             } catch (e) {
-              console.error("Can't monitor the device!\n", error)
+              // console.error("Can't monitor the device!\n", error)
               return
             }
           }
         )
       })
-      this.setState(prv => ({ devices: newDevices }))
+
     })
   }
 
@@ -142,13 +146,13 @@ class Home extends Component {
             {this.state.connectedDevices.length === 0 ? <ListItem>
               <Body><Text>No Connected Devices</Text></Body>
             </ListItem> : this.state.connectedDevices.map(device => (
-              <ListItem key={device.id}>
+              <ListItem key={device[0]}>
                 <Body >
                   <Button transparent full onPress={() => {
-                    this.props.navigation.navigate("Device", { name: device.name, id: device.id })
+                    this.props.navigation.navigate("Device", { device })
                   }}>
-                    <Text>{device.name}</Text>
-                    <Text note>{device.id}</Text>
+                    <Text>{device[1]}</Text>
+                    <Text note>{device[0]}</Text>
                   </Button>
                 </Body>
               </ListItem>
@@ -160,18 +164,18 @@ class Home extends Component {
               <Body><Text>Click SCAN to find nearby devices</Text></Body>
             </ListItem> :
               this.state.devices.map(device => (
-                <ListItem key={device.id}>
+                <ListItem key={device[0]}>
                   <Body>
                     <TouchableOpacity
                       onPress={() => {
-                        this.props.navigation.navigate("Device", { name: device.name, id: device.id })
+                        this.props.navigation.navigate("Device", { device })
                       }}>
-                      <Text>{device.name}</Text>
-                      <Text note>{device.id}</Text>
+                      <Text>{device[1]}</Text>
+                      <Text note>{device[0]}</Text>
                     </TouchableOpacity>
                   </Body>
                   <Right>
-                    <Button style={{ width: 110 }} onPress={() => this.connectToDevice(device)}>
+                    <Button style={{ width: 110 }} onPress={() => this.connectToDevice(device[0])}>
                       <Text>Connect</Text>
                     </Button>
                   </Right>
@@ -192,7 +196,7 @@ function App() {
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen name="Home" component={Home} options={{ headerShown: false }} />
-        <Stack.Screen name="Device" component={DevicePage} options={({ route }) => ({ title: route.params.name })} />
+        <Stack.Screen name="Device" component={DevicePage} options={({ route }) => ({ title: route.params.device[1] })} />
       </Stack.Navigator>
     </NavigationContainer>
   );

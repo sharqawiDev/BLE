@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { View, ToastAndroid } from 'react-native'
+import { View, ToastAndroid, Alert } from 'react-native'
 import {
     manager,
     SERVICE_UUID,
@@ -13,11 +13,11 @@ import { ScrollView } from 'react-native-gesture-handler';
 export default class DevicePage extends Component {
     constructor(params) {
         super(params)
-        const { name, id } = params.route.params;
+        const { device } = params.route.params;
         this.state = {
             data: "",
-            name,
-            id,
+            name: device[1],
+            id: device[0],
             connected: false
         }
     }
@@ -66,8 +66,13 @@ export default class DevicePage extends Component {
                             return
                         }
                         const incoming = Base64.decode(characteristic.value).trim() + '\n';
-                        this.setState(prv => ({ data: prv.data === null ? incoming : prv.data + incoming }), () => {
-                            AsyncStorage.setItem(id, this.state.data)
+                        AsyncStorage.getItem(id).then(result => {
+                            if (result) {
+                                result = result.concat(incoming)
+                                AsyncStorage.setItem(id, result)
+                            } else {
+                                AsyncStorage.setItem(id, incoming)
+                            }
                         })
                     }
                 )
@@ -133,6 +138,24 @@ export default class DevicePage extends Component {
                             </View>
                         </ScrollView>
                     </Card>
+                    <Button full warning onPress={() => {
+                        Alert.alert(
+                            "Are you sure?",
+                            "All recent barcodes will be deleted!",
+                            [
+                                {
+                                    text: "Cancel",
+                                    style: "cancel"
+                                },
+                                {
+                                    text: "OK", onPress: () => {
+                                        AsyncStorage.setItem(this.state.id, "")
+                                    }
+                                }
+                            ],
+                            { cancelable: false }
+                        );
+                    }}><Text>Clear Recent Barcodes</Text></Button>
                 </Content>
             </Container>)
     }
