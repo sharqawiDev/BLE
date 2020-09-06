@@ -3,11 +3,14 @@ import { manager, SERVICE_UUID, CHARACTERISTIC_UUID } from "./BTManager"
 
 import React, { Component } from 'react';
 import {
-  ToastAndroid
+  ToastAndroid,
+  PermissionsAndroid
 } from 'react-native';
 import AsyncStorage from '@react-native-community/async-storage';
 import { Base64 } from 'js-base64';
+import LocationServicesDialogBox from "react-native-android-location-services-dialog-box";
 import { Container, Header, Body, Right, Button, Title, List, ListItem, Text } from 'native-base';
+import { BluetoothStatus } from 'react-native-bluetooth-status';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import DevicePage from './DevicePage';
@@ -20,19 +23,68 @@ class Home extends Component {
   state = {
     scanning: "SCAN",
     devices: [],
-    connectedDevices: []
+    connectedDevices: [],
+    BTEnabled: 'unknown',
+    GPSGranted: false,
+    GPSEnabled: false
   }
 
   componentDidMount() {
-    this.refreshConnectedDevices()
+    this.GPSStatus()
+    this.requestGPSPermission()
+    BluetoothStatus.state().then(state => {
+      this.setState({ BTEnabled: state }, () => this.refreshConnectedDevices())
+    })
   }
+
+  GPSStatus = () => {
+    LocationServicesDialogBox.checkLocationServicesIsEnabled({
+      message: "<h2 style='color: #0af13e'>Use Location?</h2>This app wants to change your device settings:<br/><br/>Use GPS location<br/><br/>",
+      ok: "YES",
+      cancel: "NO",
+      enableHighAccuracy: true, // true => GPS AND NETWORK PROVIDER, false => GPS OR NETWORK PROVIDER
+      showDialog: true, // false => Opens the Location access page directly
+      openLocationServices: true, // false => Directly catch method is called if location services are turned off
+      preventOutSideTouch: true, // true => To prevent the location services window from closing when it is clicked outside
+      preventBackClick: false, // true => To prevent the location services popup from closing when it is clicked back button
+      providerListener: false // true ==> Trigger locationProviderStatusChange listener when the location state changes
+    }).then(success => {
+      this.setState({ GPSEnabled: true })
+    }).catch((error) => {
+      this.setState({ GPSEnabled: false })
+    });
+  }
+
+  requestGPSPermission = async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: "Nana BLE Scanner GPS Permission",
+          message:
+            "Nana BLE Scanner needs access to your GPS ",
+          buttonNeutral: "Ask Me Later",
+          buttonNegative: "Cancel",
+          buttonPositive: "OK"
+        }
+      );
+      this.setState({
+        GPSGranted:
+          (granted === PermissionsAndroid.RESULTS.GRANTED)
+      })
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
 
 
   refreshConnectedDevices = () => {
-    manager.connectedDevices([SERVICE_UUID]).then(list => {
-      const newList = list.map(item => [item.id, item.name])
-      this.setState({ connectedDevices: newList })
-    })
+    if (this.state.BTEnabled)
+      manager.connectedDevices([SERVICE_UUID]).then(list => {
+        const newList = list.map(item => [item.id, item.name])
+        this.setState({ connectedDevices: newList })
+      })
   }
 
 
@@ -42,6 +94,7 @@ class Home extends Component {
     </Body>
     <Right>
       <Button hasText transparent
+        disabled={!this.state.BTEnabled}
         onPress={() => {
           this.state.scanning === "SCAN" ? this.startScanning() : this.stopScanning()
         }}>
@@ -132,16 +185,33 @@ class Home extends Component {
 
     })
   }
-
   render() {
-    setTimeout(() => this.refreshConnectedDevices(), 3000)
-    return (
-      <>
+    if (!this.state.BTEnabled) {
+      return (
+        <Container style={{ justifyContent: "center", alignItems: "center" }}>
+          <Text style={{ fontWeight: "bold" }}>Bluetooth is disabled!</Text>
+        </Container>
+      )
+    } else if (!this.state.GPSEnabled) {
+      return (
+        <Container style={{ justifyContent: "center", alignItems: "center" }}>
+          <Text style={{ fontWeight: "bold" }}>GPS is disabled!</Text>
+        </Container>
+      )
+    } else if (!this.state.GPSGranted) {
+      return (
+        <Container style={{ justifyContent: "center", alignItems: "center" }}>
+          <Text style={{ fontWeight: "bold" }}>GPS permission is not granted!</Text>
+        </Container>
+      )
+    } else {
+      setTimeout(() => this.refreshConnectedDevices(), 3000)
+      return (
         <Container>
           <this.AppHeader />
           <List>
             <ListItem itemDivider>
-              <Text>Connected Devices</Text>
+              <Text style={{ fontWeight: "bold" }}>Connected Devices</Text>
             </ListItem>
             {this.state.connectedDevices.length === 0 ? <ListItem>
               <Body><Text>No Connected Devices</Text></Body>
@@ -158,7 +228,7 @@ class Home extends Component {
               </ListItem>
             ))}
             <ListItem itemDivider>
-              <Text>Scanned Devices</Text>
+              <Text style={{ fontWeight: "bold" }}>Scanned Devices</Text>
             </ListItem>
             {this.state.devices.length === 0 ? <ListItem>
               <Body><Text>Click SCAN to find nearby devices</Text></Body>
@@ -182,11 +252,10 @@ class Home extends Component {
                 </ListItem>
               ))
             }
-
           </List>
         </Container>
-      </>
-    )
+      )
+    }
   }
 
 }
