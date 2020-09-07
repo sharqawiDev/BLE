@@ -10,6 +10,8 @@ target 'BLE_TEST' do
 
   pod 'react-native-ble-plx', :path => '../node_modules/react-native-ble-plx'
 
+  pod 'react-native-onesignal', :path => '../node_modules/react-native-onesignal'
+
   target 'BLE_TESTTests' do
     inherit! :complete
     # Pods for testing

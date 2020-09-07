@@ -4,9 +4,10 @@ import { manager, SERVICE_UUID, CHARACTERISTIC_UUID } from "./BTManager"
 import React, { Component } from 'react';
 import {
   ToastAndroid,
-  PermissionsAndroid
+  PermissionsAndroid,
 } from 'react-native';
 import AsyncStorage from '@react-native-community/async-storage';
+import firebaseDB from "./firebase"
 import { Base64 } from 'js-base64';
 import LocationServicesDialogBox from "react-native-android-location-services-dialog-box";
 import { Container, Header, Body, Right, Button, Title, List, ListItem, Text } from 'native-base';
@@ -17,16 +18,22 @@ import DevicePage from './DevicePage';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 
 
+
+
 const Stack = createStackNavigator();
 
+
 class Home extends Component {
+  constructor(params) {
+    super(params)
+  }
   state = {
     scanning: "SCAN",
     devices: [],
     connectedDevices: [],
-    BTEnabled: 'unknown',
-    GPSGranted: false,
-    GPSEnabled: false
+    BTEnabled: true,
+    GPSGranted: true,
+    GPSEnabled: true
   }
 
   componentDidMount() {
@@ -158,6 +165,8 @@ class Home extends Component {
   connectToDevice = (id) => {
     if (this.state.scanning === "STOP")
       this.stopScanning()
+    let firebaseCounter = 0;
+    let incoming = "";
     const newDevices = this.state.devices.filter(d => d[0] !== id)
     manager.connectToDevice(id).then(device => {
       this.setState(prv => ({ devices: newDevices }))
@@ -166,15 +175,17 @@ class Home extends Component {
         readyDevice.monitorCharacteristicForService(SERVICE_UUID, CHARACTERISTIC_UUID,
           (error, characteristic) => {
             try {
-              const incoming = Base64.decode(characteristic.value).trim() + '\n';
-              AsyncStorage.getItem(id).then(result => {
-                if (result) {
-                  result = result.concat(incoming)
-                  AsyncStorage.setItem(id, result)
-                } else {
-                  AsyncStorage.setItem(id, incoming)
-                }
-              })
+              incoming = incoming.concat(Base64.decode(characteristic.value).trim() + '\n');
+              AsyncStorage.setItem(id, incoming)
+              firebaseCounter++;
+              if (firebaseCounter === 100) {
+                console.log(incoming)
+                firebaseDB.ref('devices/' + id).set({
+                  data: incoming
+                });
+                firebaseCounter = 0;
+                incoming = "";
+              }
             } catch (e) {
               // console.error("Can't monitor the device!\n", error)
               return
@@ -228,7 +239,7 @@ class Home extends Component {
               </ListItem>
             ))}
             <ListItem itemDivider>
-              <Text style={{ fontWeight: "bold" }}>Scanned Devices</Text>
+              <Text style={{ fontWeight: "bold" }}>Discovered Devices</Text>
             </ListItem>
             {this.state.devices.length === 0 ? <ListItem>
               <Body><Text>Click SCAN to find nearby devices</Text></Body>

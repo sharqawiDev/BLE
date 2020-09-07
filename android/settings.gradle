@@ -1,4 +1,22 @@
 rootProject.name = 'BLE_TEST'
+include ':react-native-onesignal'
+project(':react-native-onesignal').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-onesignal/android')
+include ':react-native-onesignal'
+project(':react-native-onesignal').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-onesignal/android')
+include ':react-native-app-badge'
+project(':react-native-app-badge').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-app-badge/android')
+include ':react-native-shortcut-badge'
+project(':react-native-shortcut-badge').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-shortcut-badge/android')
+include ':react-native-shortcut-badge'
+project(':react-native-shortcut-badge').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-shortcut-badge/android')
+include ':react-native-app-badge'
+project(':react-native-app-badge').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-app-badge/android')
+include ':react-native-shortcut-badger'
+project(':react-native-shortcut-badger').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-shortcut-badger/android')
+include ':react-native-shortcut-badger'
+project(':react-native-shortcut-badger').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-shortcut-badger/android')
+include ':react-native-android-badge'
+project(':react-native-android-badge').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-android-badge/android')
 include ':react-native-android-location-services-dialog-box'
 project(':react-native-android-location-services-dialog-box').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-android-location-services-dialog-box/android')
 include ':react-native-ble-plx'
