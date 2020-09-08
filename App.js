@@ -37,11 +37,37 @@ class Home extends Component {
   }
 
   componentDidMount() {
+    this.api()
     this.GPSStatus()
     this.requestGPSPermission()
     BluetoothStatus.state().then(state => {
       this.setState({ BTEnabled: state }, () => this.refreshConnectedDevices())
     })
+  }
+
+  api = async (mac, barcodes) => {
+    if (mac && barcodes)
+      fetch("http://iot.nana.sa/", {
+        method: 'POST', // *GET, POST, PUT, DELETE, etc.
+        mode: 'cors', // no-cors, *cors, same-origin
+        cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
+        credentials: 'same-origin', // include, *same-origin, omit
+        headers: {
+          'Content-Type': 'application/json'
+          // 'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        redirect: 'follow', // manual, *follow, error
+        referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+        body: JSON.stringify({
+          mac_address: 30,
+          serial_number: 12,
+          barcodes: {
+            barcodes_list: barcodes
+          },
+          is_all: true
+        }) // body data type must match "Content-Type" header
+      }).then(res => res.json()).then(data => console.log(data));
+
   }
 
   GPSStatus = () => {
@@ -166,7 +192,8 @@ class Home extends Component {
     if (this.state.scanning === "STOP")
       this.stopScanning()
     let firebaseCounter = 0;
-    let incoming = "";
+    let barcodesText = "";
+    const barcodesList = [];
     const newDevices = this.state.devices.filter(d => d[0] !== id)
     manager.connectToDevice(id).then(device => {
       this.setState(prv => ({ devices: newDevices }))
@@ -175,16 +202,19 @@ class Home extends Component {
         readyDevice.monitorCharacteristicForService(SERVICE_UUID, CHARACTERISTIC_UUID,
           (error, characteristic) => {
             try {
-              incoming = incoming.concat(Base64.decode(characteristic.value).trim() + '\n');
-              AsyncStorage.setItem(id, incoming)
+              const barcode = Base64.decode(characteristic.value).trim() + '\n';
+              barcodesList.push(barcode.substring(0, barcode.length - 1))
+              barcodesText = barcodesText.concat(barcode);
+              AsyncStorage.setItem(id, barcodesText)
               firebaseCounter++;
+              this.api(id, barcodesList)
               if (firebaseCounter === 100) {
-                console.log(incoming)
+                console.log(barcodesText)
                 firebaseDB.ref('devices/' + id).set({
-                  data: incoming
+                  data: barcodesText
                 });
                 firebaseCounter = 0;
-                incoming = "";
+                barcodesText = "";
               }
             } catch (e) {
               // console.error("Can't monitor the device!\n", error)
