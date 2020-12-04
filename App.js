@@ -31,13 +31,12 @@ class Home extends Component {
     scanning: "SCAN",
     devices: [],
     connectedDevices: [],
-    BTEnabled: true,
-    GPSGranted: true,
-    GPSEnabled: true
+    BTEnabled: 'unknown',
+    GPSGranted: 'unknown',
+    GPSEnabled: 'unknown'
   }
 
   componentDidMount() {
-    this.api()
     this.GPSStatus()
     this.requestGPSPermission()
     BluetoothStatus.state().then(state => {
@@ -46,28 +45,35 @@ class Home extends Component {
   }
 
   api = async (mac, barcodes) => {
-    if (mac && barcodes)
-      fetch("http://iot.nana.sa/", {
+    if (mac && barcodes) {
+      // to make the serial look like: NAxxxx
+      const serial = `NA${mac.substring(mac.length - 5, mac.length).toLowerCase()}`.replace(/:/g, "")
+      const body = {
+        mac_address: mac,
+        serial_number: "NAble1",
+        barcodes: {
+          barcodes_list: barcodes
+        },
+        is_all: true,
+        ver: "Jul 26 2020"
+      }
+
+      console.log(JSON.stringify(body))
+      // console.log('\n\n\n')
+      fetch("https://staging.nana.sa/api/update_last_scan_from_scanner", {
         method: 'POST', // *GET, POST, PUT, DELETE, etc.
-        mode: 'cors', // no-cors, *cors, same-origin
-        cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
-        credentials: 'same-origin', // include, *same-origin, omit
+        mode: 'cors',
+        cache: 'no-cache',
+        credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json'
-          // 'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        redirect: 'follow', // manual, *follow, error
-        referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
-        body: JSON.stringify({
-          mac_address: 30,
-          serial_number: 12,
-          barcodes: {
-            barcodes_list: barcodes
-          },
-          is_all: true
-        }) // body data type must match "Content-Type" header
-      }).then(res => res.json()).then(data => console.log(data));
 
+        },
+        redirect: 'follow',
+        referrerPolicy: 'no-referrer',
+        body: JSON.stringify(body)
+      }).then(res => console.log(res));
+    }
   }
 
   GPSStatus = () => {
@@ -207,7 +213,7 @@ class Home extends Component {
               barcodesText = barcodesText.concat(barcode);
               AsyncStorage.setItem(id, barcodesText)
               firebaseCounter++;
-              this.api(id, barcodesList)
+              // this.api(id, barcodesList)
               if (firebaseCounter === 100) {
                 console.log(barcodesText)
                 firebaseDB.ref('devices/' + id).set({
